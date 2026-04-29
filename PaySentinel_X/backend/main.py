@@ -1,25 +1,33 @@
-import joblib
-import pandas as pd
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from backend.model import predict_fraud
 
 
-model = joblib.load("backend/fraud_model.pkl")
+app = FastAPI(title="FraudShield AI")
 
 
-def predict_fraud(transaction_data: dict) -> dict:
-    df = pd.DataFrame([transaction_data])
+class Transaction(BaseModel):
+    amount: float
+    transaction_hour: int
+    old_balance: float
+    new_balance: float
+    is_international: int
 
-    prediction = model.predict(df)[0]
-    probability = model.predict_proba(df)[0][1]
 
-    if probability >= 0.75:
-        risk_level = "High"
-    elif probability >= 0.40:
-        risk_level = "Medium"
-    else:
-        risk_level = "Low"
+@app.get("/")
+def home():
+    return {
+        "message": "FraudShield AI backend is running"
+    }
+
+
+@app.post("/predict")
+def predict(transaction: Transaction):
+    transaction_data = transaction.dict()
+    result = predict_fraud(transaction_data)
 
     return {
-        "is_fraud": bool(prediction),
-        "fraud_probability": round(probability * 100, 2),
-        "risk_level": risk_level
+        "transaction": transaction_data,
+        "prediction": result
     }
